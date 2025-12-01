@@ -60,151 +60,6 @@ class VectorDBManager(ABC):
         """Check if connection is active."""
         pass
     
-
-class ChromaDBManager(VectorDBManager):
-    """ChromaDB implementation of VectorDBManager."""
-    
-    def __init__(self):
-        self.client = None
-        self._is_connected = False
-    
-    def connect(self, connection_params: Dict[str, Any]) -> bool:
-        """Establish connection to ChromaDB."""
-        try:
-            if connection_params.get('mode') == 'persistent':
-                self.client = chromadb.PersistentClient(
-                    path=connection_params['path'],
-                    settings=Settings(anonymized_telemetry=False)
-                )
-            else:
-                self.client = chromadb.EphemeralClient()
-            
-            self._is_connected = True
-            return True
-        except Exception as e:
-            print(f"Connection error: {e}")
-            self._is_connected = False
-            return False
-    
-    def disconnect(self) -> bool:
-        """Close connection to ChromaDB."""
-        try:
-            self.client = None
-            self._is_connected = False
-            return True
-        except Exception as e:
-            print(f"Disconnection error: {e}")
-            return False
-    
-    def create_collection(self, collection_name: str, metadata: Dict[str, Any]) -> bool:
-        """Create a new collection in ChromaDB."""
-        if not self._is_connected:
-            return False
-        
-        try:
-            self.client.create_collection(
-                name=collection_name,
-                metadata=metadata
-            )
-            return True
-        except Exception as e:
-            print(f"Collection creation error: {e}")
-            return False
-    
-    def delete_collection(self, collection_name: str) -> bool:
-        """Delete collection from ChromaDB."""
-        if not self._is_connected:
-            return False
-        
-        try:
-            self.client.delete_collection(name=collection_name)
-            return True
-        except Exception as e:
-            print(f"Collection deletion error: {e}")
-            return False
-    
-    def insert_documents(
-        self, 
-        collection_name: str,
-        documents: List[str],
-        metadatas: List[Dict[str, Any]],
-        ids: List[str]
-    ) -> bool:
-        """Insert documents into ChromaDB collection."""
-        if not self._is_connected:
-            return False
-        
-        try:
-            collection = self.client.get_collection(collection_name)
-            collection.add(
-                documents=documents,
-                metadatas=metadatas,
-                ids=ids
-            )
-            return True
-        except Exception as e:
-            print(f"Insertion error: {e}")
-            return False
-    
-    def search(
-        self,
-        collection_name: str,
-        query_embeddings: List[float],
-        filters: Optional[Dict[str, Any]] = None,
-        limit: int = 10
-    ) -> List[Dict[str, Any]]:
-        """Search in ChromaDB collection."""
-        if not self._is_connected:
-            return []
-        
-        try:
-            collection = self.client.get_collection(collection_name)
-            results = collection.query(
-                query_embeddings=[query_embeddings],
-                n_results=limit,
-                where=filters
-            )
-            
-            return self._format_results(results)
-        except Exception as e:
-            print(f"Search error: {e}")
-            return []
-    
-    def get_collection_info(self, collection_name: str) -> Dict[str, Any]:
-        """Get ChromaDB collection information."""
-        if not self._is_connected:
-            return {}
-        
-        try:
-            collection = self.client.get_collection(collection_name)
-            return {
-                "name": collection_name,
-                "count": collection.count(),
-                "metadata": collection.metadata
-            }
-        except Exception as e:
-            print(f"Collection info error: {e}")
-            return {}
-    
-    @property
-    def is_connected(self) -> bool:
-        """Check if ChromaDB connection is active."""
-        return self._is_connected
-    
-    def _format_results(self, results: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Format ChromaDB results to standard format."""
-        formatted = []
-        if results['documents']:
-            for i in range(len(results['documents'][0])):
-                formatted.append({
-                    'document': results['documents'][0][i],
-                    'metadata': results['metadatas'][0][i],
-                    'id': results['ids'][0][i],
-                    'distance': results['distances'][0][i] if results['distances'] else None
-                })
-        return formatted
-
-
 class ChromaHttpDBManager(VectorDBManager):
     """ChromaDB HTTP client implementation of VectorDBManager."""
     
@@ -212,6 +67,7 @@ class ChromaHttpDBManager(VectorDBManager):
         self.client = None
         self._is_connected = False
         self.embedder = None
+        
     
     def connect(self, connection_params: Dict[str, Any]) -> bool:
         """Establish HTTP connection to ChromaDB server."""
@@ -223,7 +79,6 @@ class ChromaHttpDBManager(VectorDBManager):
                 headers=connection_params.get('headers', {})
             )
             
-            # Test connection by getting version
             self.client.heartbeat()
             self._is_connected = True
             return True
@@ -246,6 +101,17 @@ class ChromaHttpDBManager(VectorDBManager):
         except Exception as e:
             print(f"Disconnection error: {e}")
             return False
+        
+    def list_collections (self):
+        '''Get list of all collections'''
+        if (self._is_connected):
+            collections = self.client.list_collections()
+            print (f"Collections:")
+            for coll in collections:
+                print (coll.name)
+            return collections
+        else:
+            print ("No connection")
     
     def create_collection(self, collection_name: str, metadata: Dict[str, Any]) -> bool:
         """Create a new collection on ChromaDB server."""
@@ -288,6 +154,7 @@ class ChromaHttpDBManager(VectorDBManager):
         
         try:
             if not self.embedder:
+                print("With chroma embedder")
                 collection = self.client.get_collection(collection_name)
                 collection.add(
                     documents=documents,
@@ -295,6 +162,20 @@ class ChromaHttpDBManager(VectorDBManager):
                     ids=ids
                 )
                 return True
+            else:
+                print ("With custom embedder")
+                collection = self.client.get_collection(collection_name)
+                #print(f"docs:{metadatas}")
+                embeddings = self.embedder.get_embeddings(documents)
+                print("2")
+                collection.add(
+                    embeddings=embeddings,
+                    metadatas=metadatas,
+                    documents=documents,
+                    ids=ids
+                )
+                for e in embeddings:
+                    print (f"e:{e[:3]}\n")
         except Exception as e:
             print(f"Insertion error: {e}")
             return False
@@ -402,56 +283,6 @@ if __name__ == "__main__":
         http_manager.delete_collection("cv_chunks")
         http_manager.create_collection("cv_personal_data", collection_metadata)
         
-    #     # Get collection info
-    #     info = http_manager.get_collection_info("cv_chunks")
-    #     print(f"Collection info: {info}")
-        
-    #     # Example: Insert test data
-    #     test_documents = ["Middle with no experience"]
-    #     test_metadatas = [{
-    #         "cv_id": "test_002",
-    #         "chunk_number": 1,
-    #         "name": "Petr",
-    #         "level": "middle",
-    #         "specialisation": "Machine Learning"
-    #     }]
-    #     test_ids = ["doc#1"]
-    #     http_manager.insert_documents(
-    #     collection_name="cv_chunks",
-    #     documents=test_documents[0],
-    #     metadatas=test_metadatas,
-    #     ids=test_ids
-    # )
-    #     test_documents = ["Senior with a vast experience"]
-    #     test_metadatas = [{
-    #         "cv_id": "test_003",
-    #         "chunk_number": 1,
-    #         "name": "Kate",
-    #         "level": "senior",
-    #         "specialisation": "Machine Learning"
-    #     }]
-        
-    #     test_ids = ["doc#2"]
-    #     http_manager.insert_documents(
-    #     collection_name="cv_chunks",
-    #     documents=test_documents[0],
-    #     metadatas=test_metadatas,
-    #     ids=test_ids
-    # )
-    #     test_ids = ["doc_001"]
-    #     http_manager.set_embedder("embedding/models/all-MiniLM-L12-v2")
-    #     embeddings = http_manager.embedder.get_embeddings(["Strong developer"])
-    #     info = http_manager.get_collection_info("cv_chunks")
-    #     print(f"Collection info: {info}")
-    #     print(f"embeddings: {embeddings[0][:10]}")
-    #     print ("res",http_manager.search("cv_chunks",embeddings))
-    #     # http_manager.insert_documents(
-    #     #     collection_name="cv_chunks",
-    #     #     documents=test_documents,
-    #     #     metadatas=test_metadatas,
-    #     #     ids=test_ids
-    #     # )
-    #     # print("Test data inserted successfully")
         
     else:
         print("Failed to connect to ChromaDB HTTP server")

@@ -14,5 +14,5 @@ embedding/
 embedding_cache/
 models/
 data/
-*.docx
+*.docx*
 *.txt
