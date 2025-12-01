@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  chromadb:
+    image: chromadb/chroma:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/chroma/chroma
+    networks:
+      - rag-network
+
+  rag-retriever:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./models:/app/models
+      - ./data:/app/data
+      - ./embeddings_cache:/app/embeddings_cache
+    environment:
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+      - EMBEDDING_MODEL_NAME=sentence-transformers/all-MiniLM-L6-v2
+    depends_on:
+      - chromadb
+    networks:
+      - rag-network
+
+volumes:
+  chroma_data:
+
+networks:
+  rag-network:
+    driver: bridge
