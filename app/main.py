@@ -4,7 +4,6 @@ import os
 
 app = FastAPI(title="RAG Retriever MVP")
 
-# Глобальные клиенты
 chroma_client = None
 collections = {}
 
