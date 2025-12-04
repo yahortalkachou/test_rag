@@ -34,6 +34,20 @@ class ConnectionParams:
             "https": self.https,
             "prefer_grpc": self.prefer_grpc
         }
+# @dataclass
+# class SearchParams:
+#     """Search params for filtering"""
+#     params = {
+#         "field": {
+#             "must":True,
+#             "values": [val1, val2, val3]
+#         },
+#         "param2":{
+#             "must":False,
+#             "values": [val4, val5, val6]
+#         }
+#     }
+    
 
 @dataclass
 class SearchResult:
@@ -555,6 +569,130 @@ class QdrantManager(VectorDBManager):
             traceback.print_exc()  # Add error details
             return []
     
+    def filtered_search(
+        self,
+        collection_name: str,
+        query: str,
+        filters: Dict[str, Dict[str, Any]],
+        limit: int = 10
+    ) -> List[SearchResult]:
+        """
+        Filered search
+        
+        Args:
+            collection_name: collection name
+            query: querytext
+            filters: :
+                {
+                    "level": {
+                        "must": True,
+                        "values": ["SENIOR", "MIDDLE"]
+                    },
+                    "languages": {
+                        "must": True, 
+                        "values": ["english", "german"]
+                    },
+                    "domains": {
+                        "must": False,
+                        "values": ["AI", "Machine Learning"]
+                    }
+                }
+            limit: n-results
+            
+        Returns:
+            list of results
+        """
+        if not self._is_connected:
+            return []
+        
+        try:
+            if not query or not isinstance(filters, dict):
+                print("Error: Query and filters are required")
+                return []
+            
+            embeddings = self.embedder.get_embeddings([query])
+            
+            query_embedding = embeddings[0]
+            
+            qdrant_filter = self._build_filter_from_format(filters)
+            
+
+            
+            search_result = self.client.query_points(collection_name=collection_name,query_filter=qdrant_filter,query=query_embedding)
+            
+            return search_result
+            
+        except Exception as e:
+            print(f"Error in filtered_search: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
+    
+    def _build_filter_from_format(self, filters: Dict[str, Dict[str, Any]]) -> Any:
+        """
+        Converts dict to Qdrant filters        
+        Input data format:
+        {
+            "field_name": {
+                "must": bool,           # True = must, False = should
+                "values": List[Any]     # list of values
+            }
+        }
+        
+        Returns:
+            Qdrant Filter or None
+        """
+        from qdrant_client.http import models as qdrant_models
+        
+        must_conditions = []
+        should_conditions = []
+        
+        for field_name, filter_config in filters.items():
+            if not isinstance(filter_config, dict):
+                print(f"Warning: Filter for '{field_name}' is not a dict, skipping")
+                continue
+            
+            must = filter_config.get("must", True)
+            values = filter_config.get("values", [])
+            
+            if not values:
+                print(f"Warning: No values for filter '{field_name}', skipping")
+                continue
+            
+            if not isinstance(values, list):
+                values = [values]  
+
+            field_path = f"metadata.{field_name}"
+            
+            field_condition = {
+                "key": field_path,
+                "match": {"any": values}  
+            }
+            
+            if must:
+                for value in values:
+                    value_condition = {
+                        "key": field_path,
+                        "match": {"value": value}
+                    }
+                    must_conditions.append(value_condition)
+            else:
+                should_conditions.append(field_condition)
+        
+        filter_dict = {}
+        
+        if must_conditions:
+            filter_dict["must"] = must_conditions
+        
+        if should_conditions:
+            filter_dict["should"] = should_conditions
+        
+        if not filter_dict:
+            return None
+        
+        return qdrant_models.Filter(**filter_dict)
+    
+    
     def _format_results(self, results: List[models.ScoredPoint]) -> List[SearchResult]:
         """Format Qdrant results to standard format"""
         formatted = []
@@ -592,67 +730,9 @@ class VectorDBFactory:
         else:
             raise ValueError(f"Unsupported database type: {db_type}")
 
+
+
 # ============ USAGE EXAMPLE ============
 
 if __name__ == "__main__":
-    # Example usage with custom embedder
-    custom_embedder = CustomEmbedder("embedding/models/all-MiniLM-L12-v2")
-    
-    # Create Chroma manager
-    chroma_manager = VectorDBFactory.create_manager(
-        db_type=VectorDBType.CHROMA,
-        embedder=custom_embedder
-    )
-    
-    # Connect to Chroma
-    params = ConnectionParams(
-        host="localhost",
-        port=8000
-    )
-    
-    if chroma_manager.connect(params):
-        print("Connected to Chroma")
-        
-        # List collections
-        collections = chroma_manager.list_collections()
-        print(f"Collections: {collections}")
-        
-        # Search example (commented out)
-        # results = chroma_manager.search_by_text(
-        #     collection_name="cv_data",
-        #     query="Python developer with machine learning experience",
-        #     limit=5
-        # )
-        # 
-        # for result in results:
-        #     print(f"Found: {result.document[:50]}... (score: {result.score:.3f})")
-    
-    # Qdrant example
-    qdrant_manager = VectorDBFactory.create_manager(
-        db_type=VectorDBType.QDRANT,
-        embedder=custom_embedder
-    )
-    
-    qdrant_params = ConnectionParams(
-        host="localhost",
-        port=6333
-    )
-    
-    if qdrant_manager.connect(qdrant_params):
-        print("Connected to Qdrant")
-        
-        # Create collection
-        # qdrant_manager.create_collection("cv_test")
-        
-        # Insert test data
-        documents = ["Python developer", "Java engineer"]
-        metadatas = [{"level": "senior"}, {"level": "middle"}]
-        ids = ["1", "2"]
-        
-        qdrant_manager.insert_documents(
-            collection_name="cv_test",
-            documents=documents,
-            metadatas=metadatas,
-            ids=ids
-        )
-        print("Test search:", qdrant_manager.search("cv_test", "Java"))
+    pass

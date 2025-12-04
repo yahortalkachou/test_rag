@@ -17,15 +17,12 @@ class SimpleChunker:
         current_chunk = ""
         
         for sentence in sentences:
-            # Если добавление предложения превысит размер чанка
             if len(current_chunk) + len(sentence) > self.chunk_size:
                 if current_chunk:
                     chunks.append(current_chunk)
-                    # Сохраняем перекрытие
                     overlap_sentences = current_chunk.split()[-self.overlap//10:]
                     current_chunk = " ".join(overlap_sentences) + " "
                 else:
-                    # Если одно предложение больше чанка, разбиваем его
                     chunks.extend(self._split_long_sentence(sentence))
                     continue
                     
