@@ -3,7 +3,6 @@ Main parser for InnoWise standard CV documents.
 """
 
 import time
-from typing import List
 from .base_parser import BaseDocxParser, DOCX_AVAILABLE
 from .models import CV, PersonalInfo, Project
 from .text_normalizer import TextNormalizer
@@ -108,7 +107,7 @@ class InnoStandardParser(BaseDocxParser):
             description=self.normalizer.normalize(description)
         )
     
-    def _parse_projects(self, doc: Document) -> List[Project]:
+    def _parse_projects(self, doc: Document) -> list[Project]:
         """Parses projects from the second table."""
         if len(doc.tables) < 2:
             return []

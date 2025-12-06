@@ -4,8 +4,6 @@ Handles text cleaning, language level extraction, and position level parsing.
 """
 
 import re
-from typing import List, Tuple, Optional
-
 
 class TextNormalizer:
     """Utilities for text normalization and extraction."""
@@ -19,10 +17,10 @@ class TextNormalizer:
     
     @staticmethod
     def extract_between_markers(
-        lines: List[str], 
+        lines: list[str], 
         start_marker: str, 
         end_marker: str
-    ) -> List[str]:
+    ) -> list[str]:
         """Extracts lines between start and end markers."""
         try:
             start_idx = lines.index(start_marker) + 1
@@ -38,7 +36,7 @@ class TextNormalizer:
         return [TextNormalizer.normalize(item) for item in items]
     
     @staticmethod
-    def clean_language_entry(text: str) -> Tuple[str, Optional[str]]:
+    def clean_language_entry(text: str) -> tuple[str, str | None]:
         """
         Cleans language entry and extracts proficiency level.
         
@@ -85,7 +83,7 @@ class TextNormalizer:
         return TextNormalizer.normalize(text), None
     
     @staticmethod
-    def extract_position_level(text: str) -> Tuple[Optional[str], str]:
+    def extract_position_level(text: str) -> tuple[str | None, str]:
         """
         Extracts position level (Senior, Middle, etc.) from text.
         

@@ -4,7 +4,7 @@ Defines the structure of parsed CV data.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+from typing import Any
 
 
 @dataclass
@@ -13,11 +13,11 @@ class Project:
     
     name: str
     description: str
-    roles: List[str]
+    roles: list[str]
     cv_id: str
     
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'Project':
+    def from_dict(cls, data: dict[str, Any]) -> 'Project':
         """Creates Project instance from dictionary."""
         return cls(
             name=data.get("name", ""),
@@ -32,14 +32,14 @@ class PersonalInfo:
     """Personal information extracted from CV."""
     
     name: str
-    level: Optional[str] = None
-    roles: List[str] = field(default_factory=list)
-    education: List[str] = field(default_factory=list)
-    languages: List[str] = field(default_factory=list)
-    domains: List[str] = field(default_factory=list)
+    level: str | None = None
+    roles: list[str] = field(default_factory=list)
+    education: list[str] = field(default_factory=list)
+    languages: list[str] = field(default_factory=list)
+    domains: list[str] = field(default_factory=list)
     description: str = ""
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converts PersonalInfo to dictionary."""
         return {
             "name": self.name,
@@ -57,11 +57,11 @@ class CV:
     """Complete CV with personal information and projects."""
     
     personal_info: PersonalInfo
-    projects: List[Project]
+    projects: list[Project]
     cv_id: str
     
     @property
-    def metadata(self) -> Dict[str, Any]:
+    def metadata(self) -> dict[str, Any]:
         """Metadata for vector database."""
         return {
             "CV_id": self.cv_id,

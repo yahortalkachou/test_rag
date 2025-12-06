@@ -18,7 +18,7 @@ def chunk_cv_data(
     cv_collection: CVCollection, 
     chunker: SimpleChunker,
     chunk_method: str = "sentences"
-) -> Tuple[List[Dict[str, Any]], List[str], List[str]]:
+) -> tuple[list[dict[str, Any]], list[str], list[str]]:
     """
     Chunk all CVs in the collection for vector database insertion.
     
@@ -65,8 +65,8 @@ def chunk_cv_data(
 
 def display_chunking_statistics(
     cv_collection: CVCollection,
-    chunked_metadatas: List[Dict[str, Any]],
-    chunked_texts: List[str]
+    chunked_metadatas: list[dict[str, Any]],
+    chunked_texts: list[str]
 ) -> None:
     """Display statistics about chunking results."""
     print("\n" + "="*60)
@@ -116,10 +116,10 @@ def display_chunking_statistics(
 
 
 def prepare_for_vector_db(
-    chunked_metadatas: List[Dict[str, Any]],
-    chunked_texts: List[str],
-    chunk_ids: List[str]
-) -> Dict[str, Any]:
+    chunked_metadatas: list[dict[str, Any]],
+    chunked_texts: list[str],
+    chunk_ids: list[str]
+) -> dict[str, Any]:
     """
     Prepare data for insertion into vector database.
     

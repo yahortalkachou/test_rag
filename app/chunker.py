@@ -1,14 +1,11 @@
 import re
-from typing import List, Callable
-from abc import ABC, abstractmethod
-
 
 class SimpleChunker:
     def __init__(self, chunk_size: int = 1000, overlap: int = 100):
         self.chunk_size = chunk_size
         self.overlap = overlap
         
-    def chunk_by_sentences(self, text: str) -> List[str]:
+    def chunk_by_sentences(self, text: str) -> list[str]:
         """Sentence Parse simple"""
         sentences = re.split(r'[.!?]+', text)
         sentences = [s.strip() for s in sentences if s.strip()]
@@ -33,7 +30,7 @@ class SimpleChunker:
             
         return chunks
     
-    def chunk_by_words(self, text: str, words_per_chunk: int = 200) -> List[str]:
+    def chunk_by_words(self, text: str, words_per_chunk: int = 200) -> list[str]:
         words = text.split()
         chunks = []
         
@@ -43,7 +40,7 @@ class SimpleChunker:
             
         return chunks
     
-    def chunk_by_fixed_size(self, text: str) -> List[str]:
+    def chunk_by_fixed_size(self, text: str) -> list[str]:
         chunks = []
         
         for i in range(0, len(text), self.chunk_size - self.overlap):
@@ -52,7 +49,7 @@ class SimpleChunker:
             
         return chunks
     
-    def _split_long_sentence(self, sentence: str) -> List[str]:
+    def _split_long_sentence(self, sentence: str) -> list[str]:
         words = sentence.split()
         chunks = []
         
