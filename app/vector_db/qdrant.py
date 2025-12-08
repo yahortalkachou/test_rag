@@ -174,13 +174,12 @@ class QdrantManager(VectorDBManager):
                 query_embedding = self.embedder.get_embeddings([query_text])[0]
             elif query_embedding is None:
                 return []
-            
             search_result = self.client.query_points(
                 collection_name=collection_name,
                 query=query_embedding,
                 limit=limit
             )
-            return search_result
+            return self._format_results( search_result)
         except Exception as e:
             print(f"Error searching in Qdrant: {e}")
             import traceback
@@ -231,7 +230,7 @@ class QdrantManager(VectorDBManager):
             query_embedding = embeddings[0]
             qdrant_filter = self._build_filter_from_format(filters)
             search_result = self.client.query_points(collection_name=collection_name,query_filter=qdrant_filter,query=query_embedding)
-            return search_result
+            return self._format_results(search_result) 
         except Exception as e:
             print(f"Error in filtered_search: {e}")
             import traceback
@@ -295,11 +294,11 @@ class QdrantManager(VectorDBManager):
         formatted = []
         for result in results:
             formatted.append(SearchResult(
-                id=str(result.payload.get("text_id", result.id)),
-                document=result.payload.get("document", ""),
-                metadata=result.payload.get("metadata", {}),
-                score=result.score,
-                distance=1.0 - result.score  # Convert similarity to distance
+                id=str(result[1][0].payload.get("text_id")),
+                document=result[1][0].payload.get("document"),
+                metadata=result[1][0].payload.get("metadata"),
+                score=result[1][0].score,
+                distance=1.0 - result[1][0].score  # Convert similarity to distance
             ))
         
         return formatted

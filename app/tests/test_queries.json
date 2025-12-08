@@ -1,0 +1,19 @@
+{
+    "cv_semantic_search_query": "refinery",
+    "cv_search_filters": {
+                "languages": {
+                    "must": true, 
+                    "values": ["german b1"]
+                }
+            },
+    "cv_filterd_search_query": "software engineer",
+    "chunking_method": "sentences", 
+    "chunk_size": 500,
+    "chunk_overlap": 50,
+    "test_data_folder": "data/",
+    "cv_s": ["cv_egor.docx", "cv_ivan.docx", "cv_alex.docx", "cv_lev.docx"],
+    "expected_names_from_cv_s": ["Egor (name)", "Alexander", "Ivan", "Lev"],
+    "expected_cv_semantic_search_name": "Ivan",
+    "expected_cv_filtered_search_name": "Lev"
+
+}

@@ -1,17 +1,18 @@
 """
-Example usage of the CV parsers with chunking functionality.
-Demonstrates parsing CVs, chunking text, and preparing data for vector database.
+Testing of parsing CVs, chunking text, and upserting data in vector database.
 """
 from typing import Any
-import sys
 import os
+import json
 from dotenv import load_dotenv
 from app.parsers import CVCollection
 from app.chunker.chunker import SimpleChunker
 from app.vector_db  import VectorDBFactory, ConnectionParams, CustomEmbedder
 
 load_dotenv()
-
+with open("app/tests/test_queries.json","r") as f:
+    testing_params = json.load(f)
+    
 def chunk_cv_data(
     cv_collection: CVCollection, 
     chunker: SimpleChunker,
@@ -132,11 +133,11 @@ def prepare_for_vector_db(
     }
 
 
-def main():
+def parsing_test(verbose :bool = False):
     """Main example demonstrating CV parsing and chunking."""
     # Initialize components
     collection = CVCollection()
-    chunker = SimpleChunker(chunk_size=500, overlap=50)  
+    chunker = SimpleChunker(chunk_size=testing_params["chunk_size"], overlap=testing_params["chunk_overlap"])  
     passed = False
     host = os.getenv("QDRANT_HOST")
     port = os.getenv("QDRANT_PORT")
@@ -145,22 +146,23 @@ def main():
     collection_metadata = {
         "about":"test collection"
     }
-    
-    print("="*60)
-    print("CV PARSING AND CHUNKING DEMO")
-    print("="*60)
+    if (verbose):
+        print("="*60)
+        print("CV PARSING AND CHUNKING DEMO")
+        print("="*60)
     
     try:
         # Add CVs from files
-        data_path = os.path.dirname(__file__) + "/data/"
+        data_path = os.path.dirname(__file__) + "/" + testing_params["test_data_folder"]
         cv_files = [
             data_path+"cv_lev.docx",
             data_path+"cv_egor.docx", 
             data_path+"cv_ivan.docx",
             data_path+"cv_alex.docx"
         ]
-        
-        print("\nParsing CV files...")
+        cv_files = [data_path + file for file in testing_params["cv_s"]]
+        if (verbose):
+            print("\nParsing CV files...")
         successful_parses = 0
         
         for cv_file in cv_files:
@@ -172,64 +174,68 @@ def main():
             try:
                 cv_id = collection.add_cv_from_file(cv_file) 
                 cv_name = collection.cvs[-1].personal_info.name
-                print(f"  ✓ {cv_file}: '{cv_name}' (ID: {cv_id})")
-                successful_parses += 1
+                if (verbose):
+                    print(f"  ✓ {cv_file}: '{cv_name}' (ID: {cv_id})")
+                if cv_name in testing_params["expected_names_from_cv_s"]:
+                    successful_parses += 1
             except Exception as e:
                 print(f"  ✗ {cv_file}: Error - {e}")
-        
         if successful_parses == 0:
             print("\nNo CVs were successfully parsed. Exiting.")
             return
-        if successful_parses == 4:
+        if successful_parses == len( testing_params["cv_s"]):
             passed = True
-            print(f"lol {successful_parses, passed}")
+        
+        if (verbose):
+            # Display parsed CV information
+            print(f"\nSuccessfully parsed {successful_parses} CV(s)")
+            print("\n" + "-"*60)
+            print("PARSED CV INFORMATION")
+            print("-"*60)
             
-        # Display parsed CV information
-        print(f"\nSuccessfully parsed {successful_parses} CV(s)")
-        print("\n" + "-"*60)
-        print("PARSED CV INFORMATION")
-        print("-"*60)
-        
-        for i, cv in enumerate(collection.cvs, 1):
-            print(f"\nCV {i}: {cv.personal_info.name}")
-            print(f"  Level: {cv.personal_info.level or 'Not specified'}")
-            print(f"  Roles: {', '.join(cv.personal_info.roles) if cv.personal_info.roles else 'None'}")
-            print(f"  Languages: {', '.join(cv.personal_info.languages) if cv.personal_info.languages else 'None'}")
-            print(f"  Projects: {len(cv.projects)}")
-            print(f"  Description length: {len(cv.text)} characters")
-            print(f"  CV ID: {cv.cv_id}")
-        
-        # Chunk the CV texts
-        print("\n" + "-"*60)
-        print("CHUNKING CV TEXTS")
-        print("-"*60)
+            for i, cv in enumerate(collection.cvs, 1):
+                print(f"\nCV {i}: {cv.personal_info.name}")
+                print(f"  Level: {cv.personal_info.level or 'Not specified'}")
+                print(f"  Roles: {', '.join(cv.personal_info.roles) if cv.personal_info.roles else 'None'}")
+                print(f"  Languages: {', '.join(cv.personal_info.languages) if cv.personal_info.languages else 'None'}")
+                print(f"  Projects: {len(cv.projects)}")
+                print(f"  Description length: {len(cv.text)} characters")
+                print(f"  CV ID: {cv.cv_id}")
+            
+            # Chunk the CV texts
+            print("\n" + "-"*60)
+            print("CHUNKING CV TEXTS")
+            print("-"*60)
         
         chunk_method = "sentences"  # Try: "sentences", "words", or "fixed"
-        print(f"\nUsing chunking method: '{chunk_method}'")
-        print(f"Chunk size: {chunker.chunk_size}, Overlap: {chunker.overlap}")
+        if (verbose):
+            print(f"\nUsing chunking method: '{chunk_method}'")
+            print(f"Chunk size: {chunker.chunk_size}, Overlap: {chunker.overlap}")
         
         chunked_metadatas, chunked_texts, chunk_ids = chunk_cv_data(
             collection, chunker, chunk_method
         )
         
-        # Display statistics
-        display_chunking_statistics(collection, chunked_metadatas, chunked_texts)
-        
-        # Prepare for vector database
-        print("\n" + "-"*60)
-        print("VECTOR DATABASE PREPARATION")
-        print("-"*60)
+        if (verbose):
+            # Display statistics
+            display_chunking_statistics(collection, chunked_metadatas, chunked_texts)
+            
+            # Prepare for vector database
+            print("\n" + "-"*60)
+            print("VECTOR DATABASE PREPARATION")
+            print("-"*60)
         
         vector_db_data = prepare_for_vector_db(chunked_metadatas, chunked_texts, chunk_ids)
         
-        print(f"\nData ready for vector database insertion:")
-        print(f"  Total items: {vector_db_data['count']}")
-        print(f"  Metadata fields per item: {len(vector_db_data['metadatas'][0]) if vector_db_data['metadatas'] else 0}")
-        
-        # Example: How to use with your VectorDBManager
-        print("\n" + "="*60)
-        print("EXAMPLE: INSERTING INTO VECTOR DATABASE")
-        print("="*60)
+        if (verbose):
+            print(f"\nData ready for vector database insertion:")
+            print(f"  Total items: {vector_db_data['count']}")
+            print(f"  Metadata fields per item: {len(vector_db_data['metadatas'][0]) if vector_db_data['metadatas'] else 0}")
+            
+            # Example: How to use with your VectorDBManager
+            print("\n" + "="*60)
+            print("EXAMPLE: INSERTING INTO VECTOR DATABASE")
+            print("="*60)
         
         embedder = CustomEmbedder(embedding_model)
         db_manager = VectorDBFactory.create_manager(
@@ -263,8 +269,7 @@ def main():
 
 
 if __name__ == "__main__":
-    result = False
-    if main():
+    if parsing_test(verbose=True):
         print("Parser test has been PASSED!")
     else:
         print("Parser test has been FAILED!")
