@@ -1,6 +1,6 @@
 from typing import Any
 import chromadb
-from .manager import VectorDBManager, VectorDBType, BaseEmbedder, ConnectionParams,\
+from app.vector_db.manager import VectorDBManager, VectorDBType, BaseEmbedder, ConnectionParams,\
     CollectionInfo, SearchResult
 
 class ChromaManager(VectorDBManager):

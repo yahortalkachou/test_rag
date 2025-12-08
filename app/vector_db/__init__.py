@@ -2,8 +2,8 @@
 CV Parsers package.
 """
 
-from .factory import VectorDBFactory, VectorDBType
-from .manager import CustomEmbedder, ConnectionParams
+from app.vector_db.factory import VectorDBFactory, VectorDBType
+from app.vector_db.manager import CustomEmbedder, ConnectionParams
 
 __all__ = [
     'VectorDBFactory',

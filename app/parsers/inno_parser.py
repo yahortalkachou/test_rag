@@ -3,10 +3,10 @@ Main parser for InnoWise standard CV documents.
 """
 
 import time
-from .base_parser import BaseDocxParser, DOCX_AVAILABLE
-from .models import CV, PersonalInfo, Project
-from .text_normalizer import TextNormalizer
-from .project_parser import InnoProjectParser
+from app.parsers.base_parser import BaseDocxParser, DOCX_AVAILABLE
+from app.parsers.models import CV, PersonalInfo, Project
+from app.parsers.text_normalizer import TextNormalizer
+from app.parsers.project_parser import InnoProjectParser
 
 if DOCX_AVAILABLE:
     from docx import Document

@@ -2,17 +2,15 @@
 Example usage of the CV parsers with chunking functionality.
 Demonstrates parsing CVs, chunking text, and preparing data for vector database.
 """
-
+from typing import Any
 import sys
 import os
-from typing import Any
+from dotenv import load_dotenv
+from app.parsers import CVCollection
+from app.chunker.chunker import SimpleChunker
+from app.vector_db  import VectorDBFactory, ConnectionParams, CustomEmbedder
 
-# Add project root to Python path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-from app.vector_db.parsers.parsers import CVCollection
-from app.vector_db.parsers.chunker.chunker import SimpleChunker
-
+load_dotenv()
 
 def chunk_cv_data(
     cv_collection: CVCollection, 
@@ -138,7 +136,15 @@ def main():
     """Main example demonstrating CV parsing and chunking."""
     # Initialize components
     collection = CVCollection()
-    chunker = SimpleChunker(chunk_size=500, overlap=50)  # Smaller chunks for demo
+    chunker = SimpleChunker(chunk_size=500, overlap=50)  
+    passed = False
+    host = os.getenv("QDRANT_HOST")
+    port = os.getenv("QDRANT_PORT")
+    embedding_model = os.getenv("EMBEDDING_MODEL_NAME")
+    collection_name = os.getenv("TEST_COLLECTION_NAME")
+    collection_metadata = {
+        "about":"test collection"
+    }
     
     print("="*60)
     print("CV PARSING AND CHUNKING DEMO")
@@ -146,11 +152,12 @@ def main():
     
     try:
         # Add CVs from files
+        data_path = os.path.dirname(__file__) + "/data/"
         cv_files = [
-            "cv_lev.docx",
-            "cv.docx", 
-            "cv_ivan.docx",
-            "cv_K.docx"
+            data_path+"cv_lev.docx",
+            data_path+"cv_egor.docx", 
+            data_path+"cv_ivan.docx",
+            data_path+"cv_alex.docx"
         ]
         
         print("\nParsing CV files...")
@@ -163,7 +170,7 @@ def main():
                 continue
             
             try:
-                cv_id = collection.add_cv_from_file(cv_file)  # File is in current directory
+                cv_id = collection.add_cv_from_file(cv_file) 
                 cv_name = collection.cvs[-1].personal_info.name
                 print(f"  ✓ {cv_file}: '{cv_name}' (ID: {cv_id})")
                 successful_parses += 1
@@ -173,7 +180,10 @@ def main():
         if successful_parses == 0:
             print("\nNo CVs were successfully parsed. Exiting.")
             return
-        
+        if successful_parses == 4:
+            passed = True
+            print(f"lol {successful_parses, passed}")
+            
         # Display parsed CV information
         print(f"\nSuccessfully parsed {successful_parses} CV(s)")
         print("\n" + "-"*60)
@@ -221,37 +231,23 @@ def main():
         print("EXAMPLE: INSERTING INTO VECTOR DATABASE")
         print("="*60)
         
-
-        # Example code to insert into vector database:
-
-        from app.vector_db.parsers.vector_db  import VectorDBFactory, ConnectionParams, CustomEmbedder
-
-        # Initialize vector DB manager
-        embedder = CustomEmbedder("embedding/models/all-MiniLM-L12-v2")
+        embedder = CustomEmbedder(embedding_model)
         db_manager = VectorDBFactory.create_manager(
             db_type="qdrant",
             embedder=embedder
         )
 
         # Connect to database
-        params = ConnectionParams(host="localhost", port=6333)
+        params = ConnectionParams(host=host, port=port)
         if db_manager.connect(params):
-            # Create or get collection
-            collection_name = "cv_chunks"
             if collection_name not in db_manager.list_collections():
-                col_meatadata = {
-                    "data":"chunks"
-                }
-                db_manager.create_collection(collection_name,col_meatadata)
-            
-            # Insert chunked data
+                db_manager.create_collection(collection_name, collection_metadata)
             success = db_manager.insert_documents(
                 collection_name=collection_name,
                 documents=vector_db_data["documents"],
                 metadatas=vector_db_data["metadatas"],
                 ids=vector_db_data["ids"]
             )
-            
             if success:
                 print(f"Successfully inserted {len(vector_db_data['ids'])} chunks")
             else:
@@ -262,28 +258,13 @@ def main():
         print(f"\nError during execution: {e}")
         import traceback
         traceback.print_exc()
+    return passed
+    
 
 
 if __name__ == "__main__":
-    # Check if chunker module exists
-    try:
-        import re  # Required by chunker
-        from app.vector_db.parsers.chunker import SimpleChunker
-        main()
-    except ImportError as e:
-        print(f"Import error: {e}")
-        print("\nPlease ensure:")
-        print("1. chunker.py exists in app/ directory")
-        print("2. The chunker.py file contains the SimpleChunker class")
-        print("3. You're running from the project root directory")
-        
-        # Show directory structure
-        print("\nCurrent directory structure:")
-        for root, dirs, files in os.walk("."):
-            level = root.replace(".", "").count(os.sep)
-            indent = " " * 2 * level
-            print(f"{indent}{os.path.basename(root)}/")
-            subindent = " " * 2 * (level + 1)
-            for file in files:
-                if file.endswith(".py"):
-                    print(f"{subindent}{file}")
+    result = False
+    if main():
+        print("Parser test has been PASSED!")
+    else:
+        print("Parser test has been FAILED!")

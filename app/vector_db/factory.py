@@ -1,6 +1,6 @@
-from .manager import VectorDBType, BaseEmbedder, VectorDBManager
-from .chroma import ChromaManager
-from .qdrant import QdrantManager
+from app.vector_db.manager import VectorDBType, BaseEmbedder, VectorDBManager
+from app.vector_db.chroma import ChromaManager
+from app.vector_db.qdrant import QdrantManager
 class VectorDBFactory:
     """Factory for creating database managers"""
     

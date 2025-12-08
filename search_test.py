@@ -1,7 +1,7 @@
 import sys 
 import os
 from dotenv import load_dotenv
-from app.vector_db import VectorDBType, VectorDBFactory, ConnectionParams, CustomEmbedder
+from app.vector_db.parsers.vector_db import VectorDBType, VectorDBFactory, ConnectionParams, CustomEmbedder
 
 load_dotenv()
 if len(sys.argv) >2:

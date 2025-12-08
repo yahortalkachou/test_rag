@@ -1,7 +1,7 @@
 from typing import Any
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
-from .manager import VectorDBManager, VectorDBType, BaseEmbedder, ConnectionParams,\
+from app.vector_db.manager import VectorDBManager, VectorDBType, BaseEmbedder, ConnectionParams,\
     CollectionInfo, SearchResult
 
 class QdrantManager(VectorDBManager):

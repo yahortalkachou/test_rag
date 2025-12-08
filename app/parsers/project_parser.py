@@ -3,8 +3,8 @@ Parser for extracting project information from CV tables.
 """
 
 from typing import List
-from .text_normalizer import TextNormalizer
-from .models import Project
+from app.parsers.text_normalizer import TextNormalizer
+from app.parsers.models import Project
 
 
 class InnoProjectParser:

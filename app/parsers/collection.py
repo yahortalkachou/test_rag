@@ -3,8 +3,8 @@ Manager for collections of parsed CVs.
 """
 
 from typing import Any
-from .models import CV
-from .inno_parser import InnoStandardParser
+from app.parsers.models import CV
+from app.parsers.inno_parser import InnoStandardParser
 
 
 class CVCollection:
