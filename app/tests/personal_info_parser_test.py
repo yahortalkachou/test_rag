@@ -67,7 +67,9 @@ def display_chunking_statistics(
     chunked_metadatas: list[dict[str, Any]],
     chunked_texts: list[str]
 ) -> None:
-    """Display statistics about chunking results."""
+    """Display statistics about chunking results.
+        Expected to use in verbose mode.
+    """
     print("\n" + "="*60)
     print("CHUNKING STATISTICS")
     print("="*60)
@@ -154,12 +156,6 @@ def parsing_test(verbose :bool = False):
     try:
         # Add CVs from files
         data_path = os.path.dirname(__file__) + "/" + testing_params["test_data_folder"]
-        cv_files = [
-            data_path+"cv_lev.docx",
-            data_path+"cv_egor.docx", 
-            data_path+"cv_ivan.docx",
-            data_path+"cv_alex.docx"
-        ]
         cv_files = [data_path + file for file in testing_params["cv_s"]]
         if (verbose):
             print("\nParsing CV files...")
@@ -176,6 +172,9 @@ def parsing_test(verbose :bool = False):
                 cv_name = collection.cvs[-1].personal_info.name
                 if (verbose):
                     print(f"  ✓ {cv_file}: '{cv_name}' (ID: {cv_id})")
+                    projects = collection.cvs[-1].projects
+                    for (i,project) in enumerate(projects,1):
+                        print(f"project #{i}\n{project}\n")
                 if cv_name in testing_params["expected_names_from_cv_s"]:
                     successful_parses += 1
             except Exception as e:
@@ -207,7 +206,7 @@ def parsing_test(verbose :bool = False):
             print("CHUNKING CV TEXTS")
             print("-"*60)
         
-        chunk_method = "sentences"  # Try: "sentences", "words", or "fixed"
+        chunk_method = testing_params["chunking_method"] # Try: "sentences", "words", or "fixed"
         if (verbose):
             print(f"\nUsing chunking method: '{chunk_method}'")
             print(f"Chunk size: {chunker.chunk_size}, Overlap: {chunker.overlap}")
@@ -219,8 +218,6 @@ def parsing_test(verbose :bool = False):
         if (verbose):
             # Display statistics
             display_chunking_statistics(collection, chunked_metadatas, chunked_texts)
-            
-            # Prepare for vector database
             print("\n" + "-"*60)
             print("VECTOR DATABASE PREPARATION")
             print("-"*60)
@@ -231,8 +228,6 @@ def parsing_test(verbose :bool = False):
             print(f"\nData ready for vector database insertion:")
             print(f"  Total items: {vector_db_data['count']}")
             print(f"  Metadata fields per item: {len(vector_db_data['metadatas'][0]) if vector_db_data['metadatas'] else 0}")
-            
-            # Example: How to use with your VectorDBManager
             print("\n" + "="*60)
             print("EXAMPLE: INSERTING INTO VECTOR DATABASE")
             print("="*60)
@@ -243,7 +238,7 @@ def parsing_test(verbose :bool = False):
             embedder=embedder
         )
 
-        # Connect to database
+        # upset to database
         params = ConnectionParams(host=host, port=port)
         if db_manager.connect(params):
             if collection_name not in db_manager.list_collections():

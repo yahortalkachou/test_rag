@@ -13,10 +13,11 @@ if DOCX_AVAILABLE:
 
 
 class InnoStandardParser(BaseDocxParser):
-    """Main parser for InnoWise standard CV documents."""
+    """Main parser for Innowise standard CV documents."""
     
     def __init__(self):
         super().__init__()
+        self.cv_id = ""
         self.normalizer = TextNormalizer()
         self.project_parser = InnoProjectParser()
     
@@ -39,16 +40,13 @@ class InnoStandardParser(BaseDocxParser):
         try:
             doc = Document(file_path)
             personal_info = self._parse_personal_info(doc)
+            self.cv_id = f"{personal_info.name}_{int(time.time())}"
             projects = self._parse_projects(doc)
-            
-            cv_id = f"{personal_info.name}_{int(time.time())}"
-            
             return CV(
                 personal_info=personal_info,
                 projects=projects,
-                cv_id=cv_id
+                cv_id=self.cv_id
             )
-            
         except Exception as e:
             raise ValueError(f"Error parsing DOCX file {file_path}: {e}")
     
@@ -58,10 +56,8 @@ class InnoStandardParser(BaseDocxParser):
         
         if len(paragraphs) < 3:
             raise ValueError(f"Expected at least 3 paragraphs, got {len(paragraphs)}")
-        
         name = paragraphs[0]
         position_text = paragraphs[1]
-        
         level, position_clean = self.normalizer.extract_position_level(position_text)
         roles = [self.normalizer.normalize(role) for role in position_clean.split('/')]
         
@@ -117,7 +113,7 @@ class InnoStandardParser(BaseDocxParser):
         
         for row in projects_table.rows[1:]:  # Skip header
             try:
-                project = self.project_parser.parse_project_row(row.cells)
+                project = self.project_parser.parse_project_row(row.cells,self.cv_id)
                 projects.append(project)
             except Exception as e:
                 print(f"Warning: Failed to parse project row: {e}")

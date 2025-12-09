@@ -16,6 +16,7 @@ class Project:
     roles: list[str]
     cv_id: str
     
+    
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> 'Project':
         """Creates Project instance from dictionary."""
@@ -25,6 +26,9 @@ class Project:
             roles=data.get("roles", []),
             cv_id=data.get("cv_id", "")
         )
+
+    def __repr__(self):
+        return f"{self.cv_id}\n{self.name}\n{self.description[:70]}\n{self.roles}"
 
 
 @dataclass
@@ -72,3 +76,8 @@ class CV:
     def text(self) -> str:
         """Text content for vector database."""
         return self.personal_info.description
+    
+    @property
+    def all_projects(self) -> list[Project]:
+        '''Projects from current CV'''
+        return self
