@@ -112,6 +112,7 @@ class QdrantManager(VectorDBManager):
         
         try:
             self.client.delete_collection(name)
+            print (f"Collection {name}  has been deleted")
             return True
         except Exception as e:
             print(f"Error deleting collection: {e}")
@@ -287,6 +288,29 @@ class QdrantManager(VectorDBManager):
         if not filter_dict:
             return None
         return qdrant_models.Filter(**filter_dict)
+
+    def check_collection(self, collection: str) -> bool:
+        """Check the collection with such name"""
+        if not self._is_connected:
+            return False
+        if collection in self.list_collections():
+            return True
+        return False
+    
+    def recreate_collection (self, collection: str, meatadata: dict | None = None):
+        if not meatadata:
+            meatadata = {
+                "about": "new collection"
+            }
+        if not self.check_collection(collection):
+            self.create_collection(collection, meatadata)
+ 
+        else:
+            print(f"{collection} has been found.{collection} will be deleted and created again")
+            self.delete_collection(collection)
+            self.create_collection(collection, meatadata)
+        
+        
     
     
     def _format_results(self, results: list[models.ScoredPoint]) -> list[SearchResult]:

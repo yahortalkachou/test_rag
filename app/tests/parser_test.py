@@ -61,6 +61,56 @@ def chunk_cv_data(
     
     return chunked_metadatas, chunked_texts, chunk_ids
 
+def chunk_project_data(
+    cv_collection: CVCollection, 
+    chunker: SimpleChunker,
+    chunk_method: str = "sentences"
+) -> tuple[list[dict[str, Any]], list[str], list[str]]:
+    """
+    Chunk all projects of CVs in the collection for vector database insertion.
+    
+    Args:
+        cv_collection: Collection of parsed CVs
+        chunker: Instance of SimpleChunker
+        chunk_method: Chunking method ("sentences", "words", or "fixed")
+    
+    Returns:
+        Tuple of (chunked_metadatas, chunked_texts, chunk_ids)
+    """
+    chunked_metadatas = []
+    chunked_texts = []
+    chunk_ids = []
+    
+    for cv in cv_collection.cvs:
+        projects = cv.all_projects
+        for project in projects:
+            # Select chunking method
+            if chunk_method == "sentences":
+                chunks = chunker.chunk_by_sentences(project.description)
+            elif chunk_method == "words":
+                chunks = chunker.chunk_by_words(project.description)
+            elif chunk_method == "fixed":
+                chunks = chunker.chunk_by_fixed_size(project.description)
+            else:
+                raise ValueError(f"Unknown chunk method: {chunk_method}")
+            
+            # Create metadata and IDs for each chunk
+            for i, chunk in enumerate(chunks):
+                chunk_id = f"{project.cv_id}_pr_chunk_{i}"
+                chunk_metadata = {
+                    **cv.metadata,
+                    "chunk_id": chunk_id,
+                    "chunk_index": i,
+                    "total_chunks": len(chunks),
+                    "chunk_method": chunk_method
+                }
+                
+                chunk_ids.append(chunk_id)
+                chunked_metadatas.append(chunk_metadata)
+                chunked_texts.append(chunk)
+    
+    return chunked_metadatas, chunked_texts, chunk_ids
+
 
 def display_chunking_statistics(
     cv_collection: CVCollection,
@@ -145,6 +195,7 @@ def parsing_test(verbose :bool = False):
     port = os.getenv("QDRANT_PORT")
     embedding_model = os.getenv("EMBEDDING_MODEL_NAME")
     collection_name = os.getenv("TEST_COLLECTION_NAME")
+    collection_name_projects = collection_name + "_projects"
     collection_metadata = {
         "about":"test collection"
     }
@@ -214,15 +265,22 @@ def parsing_test(verbose :bool = False):
         chunked_metadatas, chunked_texts, chunk_ids = chunk_cv_data(
             collection, chunker, chunk_method
         )
-        
+        chunked_metadatas_projects, chunked_texts_projects, chunk_ids_projects = chunk_project_data(
+            collection, chunker, chunk_method
+        )
+        # for chunk in chunked_texts_projects:
+        #     print (f"!!!! {chunk[:50]}...{chunk[50:]}")
         if (verbose):
             # Display statistics
             display_chunking_statistics(collection, chunked_metadatas, chunked_texts)
             print("\n" + "-"*60)
+            display_chunking_statistics(collection, chunked_metadatas_projects, chunked_texts_projects)
+            print("-"*60)
             print("VECTOR DATABASE PREPARATION")
             print("-"*60)
         
         vector_db_data = prepare_for_vector_db(chunked_metadatas, chunked_texts, chunk_ids)
+        vector_db_data_projects = prepare_for_vector_db(chunked_metadatas_projects, chunked_texts_projects, chunk_ids_projects)
         
         if (verbose):
             print(f"\nData ready for vector database insertion:")
@@ -240,16 +298,25 @@ def parsing_test(verbose :bool = False):
 
         # upset to database
         params = ConnectionParams(host=host, port=port)
+        
         if db_manager.connect(params):
-            if collection_name not in db_manager.list_collections():
+            if not db_manager.check_collection(collection_name):
                 db_manager.create_collection(collection_name, collection_metadata)
-            success = db_manager.insert_documents(
+            cv_inserted = db_manager.insert_documents(
                 collection_name=collection_name,
                 documents=vector_db_data["documents"],
                 metadatas=vector_db_data["metadatas"],
                 ids=vector_db_data["ids"]
             )
-            if success:
+            if not db_manager.check_collection(collection_name_projects):
+                db_manager.create_collection(collection_name_projects, collection_metadata)
+            projects_inserted = db_manager.insert_documents(
+                collection_name=collection_name_projects,
+                documents=vector_db_data_projects["documents"],
+                metadatas=vector_db_data_projects["metadatas"],
+                ids=vector_db_data_projects["ids"]
+            )
+            if cv_inserted and projects_inserted:
                 print(f"Successfully inserted {len(vector_db_data['ids'])} chunks")
             else:
                 print("Failed to insert chunks")

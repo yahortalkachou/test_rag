@@ -14,6 +14,13 @@
     "cv_s": ["cv_egor.docx", "cv_ivan.docx", "cv_alex.docx", "cv_lev.docx"],
     "expected_names_from_cv_s": ["Egor (name)", "Alexander", "Ivan", "Lev"],
     "expected_cv_semantic_search_name": "Ivan",
-    "expected_cv_filtered_search_name": "Lev"
-
+    "expected_cv_filtered_search_name": "Lev",
+    "project_semantic_search_query": "refinery",
+    "project_search_filters": {
+                "roles": {
+                    "must": true, 
+                    "values": ["machine learning engineer"]
+                }
+            },
+    "project_filterd_search_query": "shop"        
 }

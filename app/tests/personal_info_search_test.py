@@ -9,9 +9,10 @@ from app.vector_db import VectorDBType, VectorDBFactory, ConnectionParams, Custo
 load_dotenv()
 with open("app/tests/test_queries.json","r") as f:
     testing_params = json.load(f)
-def search_test ():
+def search_test (search_in_projects: bool = False):
     passed = False
-    collection_name = os.getenv("TEST_COLLECTION_NAME")
+    collection_name = os.getenv("TEST_COLLECTION_NAME") if not search_in_projects else os.getenv("TEST_COLLECTION_NAME")+"_projects"
+    print(collection_name)
     semantic_search_query = testing_params["cv_semantic_search_query"]
     search_filters = testing_params["cv_search_filters"]
     cv_filterd_search_query = testing_params["cv_filterd_search_query"]
@@ -46,4 +47,4 @@ def search_test ():
     else:
         print("no connection")
 if __name__ == "__main__":
-    search_test()
+    search_test(True)

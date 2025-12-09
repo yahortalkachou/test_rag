@@ -80,4 +80,4 @@ class CV:
     @property
     def all_projects(self) -> list[Project]:
         '''Projects from current CV'''
-        return self
+        return self.projects
