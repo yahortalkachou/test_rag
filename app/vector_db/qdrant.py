@@ -138,13 +138,14 @@ class QdrantManager(VectorDBManager):
             for i, (doc_id, embedding, document, metadata) in enumerate(
                 zip(ids, embeddings, documents, metadatas)
             ):
+                #print(f"got doc_id {doc_id}")
                 point = models.PointStruct(
                     id=i,  # Qdrant requires numeric IDs
                     vector=embedding,
                     payload={
                         "document": document,
                         "metadata": metadata,
-                        "text_id": doc_id  # Preserve original text ID
+                        "document_id": doc_id  # Preserve original text ID
                     }
                 )
                 points.append(point)
@@ -180,7 +181,7 @@ class QdrantManager(VectorDBManager):
                 query=query_embedding,
                 limit=limit
             )
-            return self._format_results( search_result)
+            return self._format_results( search_result.points)
         except Exception as e:
             print(f"Error searching in Qdrant: {e}")
             import traceback
@@ -230,8 +231,11 @@ class QdrantManager(VectorDBManager):
             embeddings = self.embedder.get_embeddings([query])
             query_embedding = embeddings[0]
             qdrant_filter = self._build_filter_from_format(filters)
-            search_result = self.client.query_points(collection_name=collection_name,query_filter=qdrant_filter,query=query_embedding)
-            return self._format_results(search_result) 
+            search_result = self.client.query_points(collection_name=collection_name,
+                                                     query_filter=qdrant_filter,
+                                                     query=query_embedding,
+                                                     limit=limit)
+            return self._format_results(search_result.points) 
         except Exception as e:
             print(f"Error in filtered_search: {e}")
             import traceback
@@ -297,7 +301,11 @@ class QdrantManager(VectorDBManager):
             return True
         return False
     
-    def recreate_collection (self, collection: str, meatadata: dict | None = None):
+    def recreate_collection (self, collection: str, meatadata: dict | None = None) -> bool:
+        """Create collection if not found. Else delete and create collection"""
+        if not self._is_connected:
+            print("No connection")
+            return False
         if not meatadata:
             meatadata = {
                 "about": "new collection"
@@ -309,6 +317,7 @@ class QdrantManager(VectorDBManager):
             print(f"{collection} has been found.{collection} will be deleted and created again")
             self.delete_collection(collection)
             self.create_collection(collection, meatadata)
+        return True
         
         
     
@@ -318,11 +327,11 @@ class QdrantManager(VectorDBManager):
         formatted = []
         for result in results:
             formatted.append(SearchResult(
-                id=str(result[1][0].payload.get("text_id")),
-                document=result[1][0].payload.get("document"),
-                metadata=result[1][0].payload.get("metadata"),
-                score=result[1][0].score,
-                distance=1.0 - result[1][0].score  # Convert similarity to distance
+                id=result.id,#str(result.payload.get("text_id")),
+                document=result.payload.get("document"),
+                metadata=result.payload.get("metadata"),
+                score=result.score,
+                distance=1.0 - result.score  # Convert similarity to distance
             ))
         
         return formatted

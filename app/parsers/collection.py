@@ -1,18 +1,24 @@
 """
 Manager for collections of parsed CVs.
 """
-
+import json
 from typing import Any
 from app.parsers.models import CV
 from app.parsers.inno_parser import InnoStandardParser
+from app.chunker.chunker import SimpleChunker
+
 
 
 class CVCollection:
     """Manager for collections of parsed CVs."""
     
-    def __init__(self):
+    def __init__(self, chunk_size: int, chunk_overlap: int) :
+
         self.cvs: list[CV] = []
         self.parser = InnoStandardParser()
+        self.chunker = SimpleChunker(chunk_size, chunk_overlap)
+        self.cv_chunks = []
+        self.project_chunks = []
     
     def add_cv_from_file(self, file_path: str) -> str:
         """
@@ -56,3 +62,42 @@ class CVCollection:
     def clear(self):
         """Clears the collection."""
         self.cvs.clear()
+    
+    def generate_chunks(self, method: str) -> bool:
+        '''Chunk presonal and project data chunking'''
+        try:
+            for cv in self.cvs:
+                cv_chunks = self.chunker.chunk_by_sentences(cv.text,cv.metadata)
+                self.cv_chunks += cv_chunks
+                for project in cv.projects:
+                    project_chunks = self.chunker.chunk_by_sentences(project.description, project.metadata)
+                    self.project_chunks += project_chunks
+            return True
+        except Exception as e:
+            print(f"\nError during chunking: {e}")
+            return False
+    
+    def prepare_chunks_qdrant (self):
+        '''Prepare for qdrant insertion generated chunks of
+        presonal and project data chunking. Chunks suppose to be generated before
+        '''
+        vector_db_data_cv = {
+            "texts":[],
+            "metadatas":[],
+            "ids":[]
+        }
+        vector_db_data_project = {
+            "texts":[],
+            "metadatas":[],
+            "ids":[]
+        }
+        for chunk in self.cv_chunks:
+            #print(f"id: {chunk.id}")
+            vector_db_data_cv["ids"].append(chunk.id)
+            vector_db_data_cv["texts"].append(chunk.text)
+            vector_db_data_cv["metadatas"].append(chunk.metadata)
+        for (project_number,chunk) in enumerate(self.project_chunks):
+            vector_db_data_project["ids"].append(f"pr#{project_number}_{chunk.id}")
+            vector_db_data_project["texts"].append(chunk.text)
+            vector_db_data_project["metadatas"].append(chunk.metadata)
+        return vector_db_data_cv, vector_db_data_project

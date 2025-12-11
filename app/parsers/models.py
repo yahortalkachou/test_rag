@@ -11,7 +11,8 @@ from typing import Any
 class Project:
     """Project model extracted from CV."""
     
-    name: str
+    project_name: str
+    candidate_name: str
     description: str
     roles: list[str]
     cv_id: str
@@ -21,11 +22,23 @@ class Project:
     def from_dict(cls, data: dict[str, Any]) -> 'Project':
         """Creates Project instance from dictionary."""
         return cls(
-            name=data.get("name", ""),
+            project_name=data.get("project_name", ""),
+            candidate_name=data.get("candidate_name",""),
             description=data.get("description", ""),
             roles=data.get("roles", []),
             cv_id=data.get("cv_id", "")
         )
+    
+    @property
+    def metadata(self) -> dict[str, Any]:
+        """Metadata for vector database."""
+        return {
+            "CV_id": self.cv_id,
+            "project_name": self.project_name,
+            "candidate_name": self.candidate_name,
+            "description": self.description,
+            "roles": self.roles
+        }
 
     def __repr__(self):
         return f"{self.cv_id}\n{self.name}\n{self.description[:70]}\n{self.roles}"
@@ -35,7 +48,7 @@ class Project:
 class PersonalInfo:
     """Personal information extracted from CV."""
     
-    name: str
+    candidate_name: str
     level: str | None = None
     roles: list[str] = field(default_factory=list)
     education: list[str] = field(default_factory=list)
@@ -46,7 +59,7 @@ class PersonalInfo:
     def to_dict(self) -> dict[str, Any]:
         """Converts PersonalInfo to dictionary."""
         return {
-            "name": self.name,
+            "candidate_name": self.candidate_name,
             "level": self.level,
             "roles": self.roles,
             "education": self.education,

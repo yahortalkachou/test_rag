@@ -7,331 +7,104 @@ import json
 from dotenv import load_dotenv
 from app.parsers import CVCollection
 from app.chunker.chunker import SimpleChunker
+from app.chunker.chunker import Chunk
 from app.vector_db  import VectorDBFactory, ConnectionParams, CustomEmbedder
 
 load_dotenv()
-with open("app/tests/test_queries.json","r") as f:
+settings_file = os.getenv("CHUNKING_TEST_SETTINGS")
+with open(settings_file,"r") as f:
     testing_params = json.load(f)
     
-def chunk_cv_data(
-    cv_collection: CVCollection, 
-    chunker: SimpleChunker,
-    chunk_method: str = "sentences"
-) -> tuple[list[dict[str, Any]], list[str], list[str]]:
-    """
-    Chunk all CVs in the collection for vector database insertion.
-    
-    Args:
-        cv_collection: Collection of parsed CVs
-        chunker: Instance of SimpleChunker
-        chunk_method: Chunking method ("sentences", "words", or "fixed")
-    
-    Returns:
-        Tuple of (chunked_metadatas, chunked_texts, chunk_ids)
-    """
-    chunked_metadatas = []
-    chunked_texts = []
-    chunk_ids = []
-    
-    for cv in cv_collection.cvs:
-        # Select chunking method
-        if chunk_method == "sentences":
-            chunks = chunker.chunk_by_sentences(cv.text)
-        elif chunk_method == "words":
-            chunks = chunker.chunk_by_words(cv.text)
-        elif chunk_method == "fixed":
-            chunks = chunker.chunk_by_fixed_size(cv.text)
-        else:
-            raise ValueError(f"Unknown chunk method: {chunk_method}")
-        
-        # Create metadata and IDs for each chunk
-        for i, chunk in enumerate(chunks):
-            chunk_id = f"{cv.cv_id}_chunk_{i}"
-            chunk_metadata = {
-                **cv.metadata,
-                "chunk_id": chunk_id,
-                "chunk_index": i,
-                "total_chunks": len(chunks),
-                "chunk_method": chunk_method
-            }
-            
-            chunk_ids.append(chunk_id)
-            chunked_metadatas.append(chunk_metadata)
-            chunked_texts.append(chunk)
-    
-    return chunked_metadatas, chunked_texts, chunk_ids
+def parsing_test(verbose = False):
 
-def chunk_project_data(
-    cv_collection: CVCollection, 
-    chunker: SimpleChunker,
-    chunk_method: str = "sentences"
-) -> tuple[list[dict[str, Any]], list[str], list[str]]:
-    """
-    Chunk all projects of CVs in the collection for vector database insertion.
-    
-    Args:
-        cv_collection: Collection of parsed CVs
-        chunker: Instance of SimpleChunker
-        chunk_method: Chunking method ("sentences", "words", or "fixed")
-    
-    Returns:
-        Tuple of (chunked_metadatas, chunked_texts, chunk_ids)
-    """
-    chunked_metadatas = []
-    chunked_texts = []
-    chunk_ids = []
-    
-    for cv in cv_collection.cvs:
-        projects = cv.all_projects
-        for project in projects:
-            # Select chunking method
-            if chunk_method == "sentences":
-                chunks = chunker.chunk_by_sentences(project.description)
-            elif chunk_method == "words":
-                chunks = chunker.chunk_by_words(project.description)
-            elif chunk_method == "fixed":
-                chunks = chunker.chunk_by_fixed_size(project.description)
-            else:
-                raise ValueError(f"Unknown chunk method: {chunk_method}")
-            
-            # Create metadata and IDs for each chunk
-            for i, chunk in enumerate(chunks):
-                chunk_id = f"{project.cv_id}_pr_chunk_{i}"
-                chunk_metadata = {
-                    **cv.metadata,
-                    "chunk_id": chunk_id,
-                    "chunk_index": i,
-                    "total_chunks": len(chunks),
-                    "chunk_method": chunk_method
-                }
-                
-                chunk_ids.append(chunk_id)
-                chunked_metadatas.append(chunk_metadata)
-                chunked_texts.append(chunk)
-    
-    return chunked_metadatas, chunked_texts, chunk_ids
-
-
-def display_chunking_statistics(
-    cv_collection: CVCollection,
-    chunked_metadatas: list[dict[str, Any]],
-    chunked_texts: list[str]
-) -> None:
-    """Display statistics about chunking results.
-        Expected to use in verbose mode.
-    """
-    print("\n" + "="*60)
-    print("CHUNKING STATISTICS")
-    print("="*60)
-    
-    # Basic statistics
-    print(f"\nTotal CVs parsed: {len(cv_collection.cvs)}")
-    print(f"Total chunks created: {len(chunked_texts)}")
-    print(f"Average chunks per CV: {len(chunked_texts) / len(cv_collection.cvs):.1f}")
-    
-    # CV-specific statistics
-    cv_chunk_counts = {}
-    for metadata in chunked_metadatas:
-        cv_id = metadata["CV_id"]
-        cv_chunk_counts[cv_id] = cv_chunk_counts.get(cv_id, 0) + 1
-    
-    print(f"\nChunks per CV:")
-    for cv_id, count in cv_chunk_counts.items():
-        cv_name = cv_id.split('_')[0] if '_' in cv_id else cv_id
-        print(f"  {cv_name}: {count} chunks")
-    
-    # Text length statistics
-    chunk_lengths = [len(text) for text in chunked_texts]
-    if chunk_lengths:
-        avg_length = sum(chunk_lengths) / len(chunk_lengths)
-        max_length = max(chunk_lengths)
-        min_length = min(chunk_lengths)
-        
-        print(f"\nChunk text length statistics:")
-        print(f"  Average length: {avg_length:.0f} characters")
-        print(f"  Maximum length: {max_length} characters")
-        print(f"  Minimum length: {min_length} characters")
-        print(f"  Total text processed: {sum(chunk_lengths):,} characters")
-    
-    # Show sample chunks
-    print(f"\n" + "="*60)
-    print("SAMPLE CHUNKS (first 3)")
-    print("="*60)
-    
-    for i in range(min(3, len(chunked_texts))):
-        print(f"\nChunk {i+1}:")
-        print(f"ID: {chunked_metadatas[i].get('chunk_id', 'N/A')}")
-        print(f"From CV: {chunked_metadatas[i].get('name', 'N/A')}")
-        print(f"Text preview (first 150 chars):")
-        print(f"  {chunked_texts[i][:150]}...")
-
-
-def prepare_for_vector_db(
-    chunked_metadatas: list[dict[str, Any]],
-    chunked_texts: list[str],
-    chunk_ids: list[str]
-) -> dict[str, Any]:
-    """
-    Prepare data for insertion into vector database.
-    
-    Returns:
-        Dictionary with data ready for vector DB insertion
-    """
-    return {
-        "metadatas": chunked_metadatas,
-        "documents": chunked_texts,
-        "ids": chunk_ids,
-        "count": len(chunk_ids)
-    }
-
-
-def parsing_test(verbose :bool = False):
-    """Main example demonstrating CV parsing and chunking."""
-    # Initialize components
-    collection = CVCollection()
-    chunker = SimpleChunker(chunk_size=testing_params["chunk_size"], overlap=testing_params["chunk_overlap"])  
     passed = False
     host = os.getenv("QDRANT_HOST")
     port = os.getenv("QDRANT_PORT")
+    params = ConnectionParams(host=host, port=port)
     embedding_model = os.getenv("EMBEDDING_MODEL_NAME")
-    collection_name = os.getenv("TEST_COLLECTION_NAME")
-    collection_name_projects = collection_name + "_projects"
+    cv_collection_name = os.getenv("TEST_PERSONAL_DATA_COLLECTION_NAME")
+    project_collection_name = os.getenv("TEST_PROJECT_DATA_COLLECTION_NAME")
+    chunking_method = testing_params["chunking_method"]
+    collection = CVCollection(chunk_size=testing_params["chunk_size"], chunk_overlap=testing_params["chunk_overlap"])
+    embedder = CustomEmbedder(embedding_model)
+    db_manager = VectorDBFactory.create_manager(
+            db_type="qdrant",
+            embedder=embedder
+    )
     collection_metadata = {
-        "about":"test collection"
+        "about":"test cv collection"
     }
-    if (verbose):
-        print("="*60)
-        print("CV PARSING AND CHUNKING DEMO")
-        print("="*60)
-    
     try:
         # Add CVs from files
+        #Checking files
         data_path = os.path.dirname(__file__) + "/" + testing_params["test_data_folder"]
         cv_files = [data_path + file for file in testing_params["cv_s"]]
-        if (verbose):
-            print("\nParsing CV files...")
+        if verbose:
+            print(f"Looking for {''.join(cv_files)} files in {data_path}")
+            
         successful_parses = 0
-        
         for cv_file in cv_files:
             # Check if file exists in current directory
             if not os.path.exists(cv_file):
                 print(f"  ✗ {cv_file}: File not found")
                 continue
-            
             try:
+                if verbose:
+                    print(f"Reading {cv_file} ...")
                 cv_id = collection.add_cv_from_file(cv_file) 
-                cv_name = collection.cvs[-1].personal_info.name
-                if (verbose):
-                    print(f"  ✓ {cv_file}: '{cv_name}' (ID: {cv_id})")
-                    projects = collection.cvs[-1].projects
-                    for (i,project) in enumerate(projects,1):
-                        print(f"project #{i}\n{project}\n")
+                cv_name = collection.cvs[-1].personal_info.candidate_name
+                if verbose:
+                    print(f"{cv_file} has been read successfully\nCandidat's name: {cv_name} with id: {cv_id}.")
                 if cv_name in testing_params["expected_names_from_cv_s"]:
                     successful_parses += 1
             except Exception as e:
-                print(f"  ✗ {cv_file}: Error - {e}")
+                print(f"File {cv_file} couldn't be read: Error - {e}")
         if successful_parses == 0:
             print("\nNo CVs were successfully parsed. Exiting.")
             return
         if successful_parses == len( testing_params["cv_s"]):
+            if verbose:
+                print("All files has been read and parsed.")
             passed = True
-        
-        if (verbose):
-            # Display parsed CV information
-            print(f"\nSuccessfully parsed {successful_parses} CV(s)")
-            print("\n" + "-"*60)
-            print("PARSED CV INFORMATION")
-            print("-"*60)
-            
-            for i, cv in enumerate(collection.cvs, 1):
-                print(f"\nCV {i}: {cv.personal_info.name}")
-                print(f"  Level: {cv.personal_info.level or 'Not specified'}")
-                print(f"  Roles: {', '.join(cv.personal_info.roles) if cv.personal_info.roles else 'None'}")
-                print(f"  Languages: {', '.join(cv.personal_info.languages) if cv.personal_info.languages else 'None'}")
-                print(f"  Projects: {len(cv.projects)}")
-                print(f"  Description length: {len(cv.text)} characters")
-                print(f"  CV ID: {cv.cv_id}")
-            
-            # Chunk the CV texts
-            print("\n" + "-"*60)
-            print("CHUNKING CV TEXTS")
-            print("-"*60)
-        
-        chunk_method = testing_params["chunking_method"] # Try: "sentences", "words", or "fixed"
-        if (verbose):
-            print(f"\nUsing chunking method: '{chunk_method}'")
-            print(f"Chunk size: {chunker.chunk_size}, Overlap: {chunker.overlap}")
-        
-        chunked_metadatas, chunked_texts, chunk_ids = chunk_cv_data(
-            collection, chunker, chunk_method
-        )
-        chunked_metadatas_projects, chunked_texts_projects, chunk_ids_projects = chunk_project_data(
-            collection, chunker, chunk_method
-        )
-        # for chunk in chunked_texts_projects:
-        #     print (f"!!!! {chunk[:50]}...{chunk[50:]}")
-        if (verbose):
-            # Display statistics
-            display_chunking_statistics(collection, chunked_metadatas, chunked_texts)
-            print("\n" + "-"*60)
-            display_chunking_statistics(collection, chunked_metadatas_projects, chunked_texts_projects)
-            print("-"*60)
-            print("VECTOR DATABASE PREPARATION")
-            print("-"*60)
-        
-        vector_db_data = prepare_for_vector_db(chunked_metadatas, chunked_texts, chunk_ids)
-        vector_db_data_projects = prepare_for_vector_db(chunked_metadatas_projects, chunked_texts_projects, chunk_ids_projects)
-        
-        if (verbose):
-            print(f"\nData ready for vector database insertion:")
-            print(f"  Total items: {vector_db_data['count']}")
-            print(f"  Metadata fields per item: {len(vector_db_data['metadatas'][0]) if vector_db_data['metadatas'] else 0}")
-            print("\n" + "="*60)
-            print("EXAMPLE: INSERTING INTO VECTOR DATABASE")
-            print("="*60)
-        
-        embedder = CustomEmbedder(embedding_model)
-        db_manager = VectorDBFactory.create_manager(
-            db_type="qdrant",
-            embedder=embedder
-        )
-
-        # upset to database
-        params = ConnectionParams(host=host, port=port)
+        if verbose:
+            print(f"Chunking ...")
+        passed = collection.generate_chunks(chunking_method)
+        if passed:
+            print(f"Chunks has been generated with chunking size {chunking_method}")
+            if verbose:
+                print(f"Personal data chunks: {len(collection.cv_chunks)}\nProject data chunks: {len(collection.project_chunks)}")
+        vector_db_data_cv, vector_db_data_pr = collection.prepare_chunks_qdrant()
         
         if db_manager.connect(params):
-            if not db_manager.check_collection(collection_name):
-                db_manager.create_collection(collection_name, collection_metadata)
+            if not db_manager.check_collection(cv_collection_name):
+                db_manager.create_collection(cv_collection_name, collection_metadata)
             cv_inserted = db_manager.insert_documents(
-                collection_name=collection_name,
-                documents=vector_db_data["documents"],
-                metadatas=vector_db_data["metadatas"],
-                ids=vector_db_data["ids"]
+                collection_name=cv_collection_name,
+                documents=vector_db_data_cv["texts"],
+                metadatas=vector_db_data_cv["metadatas"],
+                ids=vector_db_data_cv["ids"]
             )
-            if not db_manager.check_collection(collection_name_projects):
-                db_manager.create_collection(collection_name_projects, collection_metadata)
-            projects_inserted = db_manager.insert_documents(
-                collection_name=collection_name_projects,
-                documents=vector_db_data_projects["documents"],
-                metadatas=vector_db_data_projects["metadatas"],
-                ids=vector_db_data_projects["ids"]
+            if not db_manager.check_collection(project_collection_name):
+                db_manager.create_collection(project_collection_name, collection_metadata)
+            pr_inserted = db_manager.insert_documents(
+                collection_name=project_collection_name,
+                documents=vector_db_data_pr["texts"],
+                metadatas=vector_db_data_pr["metadatas"],
+                ids=vector_db_data_pr["ids"]
             )
-            if cv_inserted and projects_inserted:
-                print(f"Successfully inserted {len(vector_db_data['ids'])} chunks")
-            else:
-                print("Failed to insert chunks")
+        if cv_inserted:
+            print(f"Personal datat chunks has been inserted")
+        if pr_inserted:
+            print(f"Project data chunks has been inserted")
+            
 
-        
+
     except Exception as e:
-        print(f"\nError during execution: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"\nError during testting: {e}")
     return passed
-    
-
-
 if __name__ == "__main__":
-    if parsing_test(verbose=True):
-        print("Parser test has been PASSED!")
+
+    if (parsing_test(True)):
+        print("Chunking test has been PASSED!")
     else:
-        print("Parser test has been FAILED!")
+        print("Chunking test has been FAILED!")

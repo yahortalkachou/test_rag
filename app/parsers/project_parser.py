@@ -11,7 +11,7 @@ class InnoProjectParser:
     """Parser for project information from CV tables."""
     
     @staticmethod
-    def parse_project_row(cells: List, cv_id: str = "") -> Project:
+    def parse_project_row(cells: List, cv_id: str = "", candidate_name: str = "") -> Project:
         """
         Parses a table row containing project information.
         Expected cv_id from personal data parsed before.
@@ -48,7 +48,8 @@ class InnoProjectParser:
         description = f"{summary} {description}" if summary else description
         
         return Project(
-            name=TextNormalizer.normalize(project_name),
+            project_name=TextNormalizer.normalize(project_name),
+            candidate_name=candidate_name,
             description=TextNormalizer.normalize(description),
             roles=[TextNormalizer.normalize(role) for role in roles],
             cv_id=cv_id  

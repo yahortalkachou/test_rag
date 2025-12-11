@@ -18,3 +18,4 @@ data/
 *.docx*
 *.txt
 .env
+.gitignore

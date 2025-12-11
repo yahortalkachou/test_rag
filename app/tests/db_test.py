@@ -8,19 +8,23 @@ from app.vector_db import VectorDBFactory, ConnectionParams, CustomEmbedder
 
 load_dotenv()
     
-def db_test():
+def db_test(verbose: bool = True):
     host = os.getenv("QDRANT_HOST")
     port = os.getenv("QDRANT_PORT")
     embedding_model = os.getenv("EMBEDDING_MODEL_NAME")
-    cv_collection_name = os.getenv("TEST_COLLECTION_NAME")
-    project_collection_name = os.getenv("TEST_COLLECTION_NAME") + "_projects"
+    cv_collection_name = os.getenv("TEST_PERSONAL_DATA_COLLECTION_NAME")
+    project_collection_name = os.getenv("TEST_PROJECT_DATA_COLLECTION_NAME") 
     passed = False
+    if not cv_collection_name or not project_collection_name:
+        print(f"Wrong setting! Got collection names: {cv_collection_name} and {project_collection_name}")
+        return False
     embedder = CustomEmbedder(embedding_model)
     db_manager = VectorDBFactory.create_manager(
         db_type="qdrant",
         embedder=embedder
     )
-
+    if verbose:
+        print(f"Connecting to {cv_collection_name} and {project_collection_name} collections")
     params = ConnectionParams(host=host, port=port)
     try:
         if db_manager.connect(params):

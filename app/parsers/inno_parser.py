@@ -2,7 +2,7 @@
 Main parser for InnoWise standard CV documents.
 """
 
-import time
+import uuid
 from app.parsers.base_parser import BaseDocxParser, DOCX_AVAILABLE
 from app.parsers.models import CV, PersonalInfo, Project
 from app.parsers.text_normalizer import TextNormalizer
@@ -18,6 +18,7 @@ class InnoStandardParser(BaseDocxParser):
     def __init__(self):
         super().__init__()
         self.cv_id = ""
+        self.candidate_name = ""
         self.normalizer = TextNormalizer()
         self.project_parser = InnoProjectParser()
     
@@ -40,7 +41,8 @@ class InnoStandardParser(BaseDocxParser):
         try:
             doc = Document(file_path)
             personal_info = self._parse_personal_info(doc)
-            self.cv_id = f"{personal_info.name}_{int(time.time())}"
+            self.cv_id = f"{uuid.uuid4()}"
+            self.candidate_name = personal_info.candidate_name
             projects = self._parse_projects(doc)
             return CV(
                 personal_info=personal_info,
@@ -56,7 +58,7 @@ class InnoStandardParser(BaseDocxParser):
         
         if len(paragraphs) < 3:
             raise ValueError(f"Expected at least 3 paragraphs, got {len(paragraphs)}")
-        name = paragraphs[0]
+        candidate_name = paragraphs[0]
         position_text = paragraphs[1]
         level, position_clean = self.normalizer.extract_position_level(position_text)
         roles = [self.normalizer.normalize(role) for role in position_clean.split('/')]
@@ -94,7 +96,7 @@ class InnoStandardParser(BaseDocxParser):
             description = description_lines[1] if len(description_lines) > 1 else ""
         
         return PersonalInfo(
-            name=name,
+            candidate_name=candidate_name,
             level=level,
             roles=roles,
             education=education,
@@ -113,10 +115,11 @@ class InnoStandardParser(BaseDocxParser):
         
         for row in projects_table.rows[1:]:  # Skip header
             try:
-                project = self.project_parser.parse_project_row(row.cells,self.cv_id)
+                project = self.project_parser.parse_project_row(row.cells, self.cv_id, self.candidate_name)
                 projects.append(project)
             except Exception as e:
                 print(f"Warning: Failed to parse project row: {e}")
                 continue
         
         return projects
+    

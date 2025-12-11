@@ -1,0 +1,12 @@
+{
+    "semantic_search_query": "self service shop",
+    "search_filters": {
+                "roles": {
+                    "must": true, 
+                    "values": ["ai architect"]
+                }
+            },
+    "filterd_search_query": "business client stream",
+    "expected_semantic_search_name": "Egor (name)",
+    "expected_filtered_search_name": "Lev"   
+}

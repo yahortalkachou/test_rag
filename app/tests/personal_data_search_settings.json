@@ -1,0 +1,12 @@
+{
+    "semantic_search_query": "refinery",
+    "search_filters": {
+                "languages": {
+                    "must": true, 
+                    "values": ["german b1"]
+                }
+            },
+    "filterd_search_query": "software engineer",
+    "expected_semantic_search_name": "Ivan",
+    "expected_filtered_search_name": "Lev"   
+}
