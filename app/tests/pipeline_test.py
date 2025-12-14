@@ -1,5 +1,5 @@
 from app.tests.db_test import db_test
-from app.tests.parser_test import parsing_test
+from app.tests.parsing_test import parsing_test
 from app.tests.search_test import search_test
 
 
