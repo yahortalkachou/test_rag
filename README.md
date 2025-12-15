@@ -59,7 +59,7 @@ docker compose logs -f rag-retriever
 
 ### 5. Accessing the System
 Once the containers are healthy, you can access the following interfaces:
-
+Run all tests (or DB test and parsing test) to init test database before using.
 * **Web Interface (NiceGUI):** [http://localhost:8000](http://localhost:8000)
 * **API Documentation (Swagger):** [http://localhost:8000/docs](http://localhost:8000/docs)
 * **Qdrant Dashboard:** [http://localhost:6333/dashboard](http://localhost:6333/dashboard)
@@ -71,3 +71,4 @@ To automatically sync code changes to the running Docker container without rebui
 ```bash
 docker compose up --watch
 ```
+

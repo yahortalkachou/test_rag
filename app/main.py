@@ -55,7 +55,7 @@ def main_page():
     ui.colors(primary='#2e59ff', secondary='#4e73df', accent='#1cc88a')
     
     with ui.header().classes('items-center justify-between bg-slate-800'):
-        ui.label('CV RAG: Senior Search Lab').classes('text-white font-bold text-lg')
+        ui.label('CV RAG: Search Lab').classes('text-white font-bold text-lg')
         ui.button('API Docs', on_click=lambda: ui.open('/docs')).props('flat color=white')
 
     with ui.row().classes('w-full no-wrap h-screen'):
